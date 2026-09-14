@@ -144,6 +144,12 @@ def api_progress(name: str):
         return JOBS.get(name, {"stage": "не запускалось", "progress": 0, "done": False})
 
 
+@app.get("/api/version")
+def api_version():
+    """Чем умеет этот процесс — интерфейс сверяется, не устарел ли сервер."""
+    return {"features": ["rallies", "score", "clips", "notes", "review"]}
+
+
 @app.get("/api/videos")
 def api_videos():
     return store.videos()

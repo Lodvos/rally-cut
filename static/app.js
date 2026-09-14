@@ -8,6 +8,18 @@ if (v && !v.parentElement.classList.contains("playerwrap")) {
 }
 let name = null, rallies = [], sel = -1, dur = 0, playQueue = null;
 
+function saveFailed(where, err) {
+  const msg = /not allowed|404/i.test(String(err))
+    ? "сервер запущен на старом коде — перезапустите его, иначе правки не сохраняются"
+    : "не удалось сохранить: " + err;
+  for (const id of ["#status", "#clipStatus", "#reviewStatus"]) {
+    const el = $(id);
+    if (el) { el.textContent = where === id ? msg : ""; el.className = where === id ? "warn" : "muted"; }
+  }
+  hint(msg);
+  console.error(where, err);
+}
+
 const fmt = t => {
   if (!isFinite(t)) return "0:00.00";
   const m = Math.floor(t / 60);
@@ -19,10 +31,12 @@ function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     if (!name) return;
-    await api("/api/segments", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, rallies })
-    });
+    try {
+      await api("/api/segments", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, rallies })
+      });
+    } catch (e) { return saveFailed("#status", e); }
     const st = $("#status");
     st.textContent = "сохранено"; st.className = "saveflash";
     setTimeout(() => { st.textContent = ""; st.className = "muted"; }, 1200);
@@ -270,6 +284,20 @@ $("#btnExport").onclick = async () => {
   }, 800);
 };
 
+async function checkServer() {
+  try {
+    const v = await api("/api/version");
+    if (!(v.features || []).includes("notes")) throw new Error("старый сервер");
+  } catch {
+    const b = document.createElement("div");
+    b.className = "banner";
+    b.textContent = "Сервер запущен на старом коде: часть правок не сохранится. " +
+                    "Остановите его и запустите заново.";
+    document.body.prepend(b);
+  }
+}
+
+checkServer();
 loadVideos();
 
 // ---------- счёт ----------
@@ -516,10 +544,12 @@ let clipSaveTimer = null;
 function saveClips() {
   clearTimeout(clipSaveTimer);
   clipSaveTimer = setTimeout(async () => {
-    await api("/api/clips", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, clips })
-    });
+    try {
+      await api("/api/clips", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, clips })
+      });
+    } catch (e) { return saveFailed("#clipStatus", e); }
     const el = $("#clipStatus");
     el.textContent = "сохранено"; el.className = "saveflash";
     setTimeout(() => { el.textContent = ""; el.className = "muted"; }, 1200);
@@ -670,10 +700,12 @@ let notesTimer = null;
 function saveNotes() {
   clearTimeout(notesTimer);
   notesTimer = setTimeout(async () => {
-    await api("/api/notes", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, notes, tags: noteTags })
-    });
+    try {
+      await api("/api/notes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, notes, tags: noteTags })
+      });
+    } catch (e) { return saveFailed("#reviewStatus", e); }
     const el = $("#reviewStatus");
     el.textContent = "сохранено"; el.className = "saveflash";
     setTimeout(() => { el.textContent = ""; el.className = "muted"; }, 1000);

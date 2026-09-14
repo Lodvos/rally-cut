@@ -96,3 +96,16 @@ details summary{cursor:pointer;color:var(--muted);margin-bottom:10px}
 .files a{display:block;padding:2px 0}
 
 .small{font-size:12px;line-height:1.4;margin:6px 0}
+
+.reviewnow{background:#20242e;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px}
+.rn-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:600}
+.rn-head span{flex:1}
+.rn-head button{padding:3px 9px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.tag{font-size:12px;padding:3px 8px;border-radius:12px;background:#2a3040;border:1px solid var(--line);cursor:pointer;color:var(--muted)}
+.tag.on{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:600}
+.reviewnow textarea{width:100%;background:#171b23;border:1px solid var(--line);border-radius:6px;
+  color:var(--text);padding:7px;font:13px/1.4 inherit;resize:vertical}
+.list.notes li{align-items:flex-start;flex-wrap:wrap}
+.list.notes .txt{flex-basis:100%;color:var(--muted);font-size:12px;padding-left:36px}
+.list.notes li.has{box-shadow:inset 2px 0 0 var(--accent)}

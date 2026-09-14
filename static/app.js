@@ -63,6 +63,7 @@ async function open(n) {
   render();
   loadScore();
   loadClips();
+  loadNotes();
 }
 
 // ---------- отрисовка ----------
@@ -201,6 +202,7 @@ function hint(t) { $("#hint").textContent = t; }
 
 document.addEventListener("keydown", e => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (reviewActive() && reviewing) return;
   const step = e.shiftKey ? 0.2 : 2;
   const r = rallies[sel];
   switch (e.key) {
@@ -238,7 +240,7 @@ document.addEventListener("keydown", e => {
 // ---------- вкладки ----------
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
-  ["list", "clips", "score", "export", "help"].forEach(k => $("#tab-" + k).hidden = (k !== t.dataset.tab));
+  ["list", "clips", "review", "score", "export", "help"].forEach(k => $("#tab-" + k).hidden = (k !== t.dataset.tab));
   if (t.dataset.tab === "clips") { drawTimeline(); } else { render(); }
 });
 
@@ -648,4 +650,108 @@ $("#btnClipExport").onclick = async () => {
               `<a href="/api/download_clip/${encodeURIComponent(name)}/${encodeURIComponent(f)}">${f}</a>`).join("") + `</div>`;
     }
   }, 800);
+};
+
+// ---------- разбор: заметки по розыгрышам ----------
+let notes = {}, noteTags = {}, tagPresets = [], reviewIdx = -1, reviewing = false;
+
+const reviewActive = () => !$("#tab-review").hidden;
+
+async function loadNotes() {
+  if (!name) return;
+  try {
+    const d = await api(`/api/notes/${encodeURIComponent(name)}`);
+    notes = d.notes || {}; noteTags = d.tags || {}; tagPresets = d.presets || [];
+    renderReview();
+  } catch { notes = {}; noteTags = {}; }
+}
+
+let notesTimer = null;
+function saveNotes() {
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(async () => {
+    await api("/api/notes", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, notes, tags: noteTags })
+    });
+    const el = $("#reviewStatus");
+    el.textContent = "сохранено"; el.className = "saveflash";
+    setTimeout(() => { el.textContent = ""; el.className = "muted"; }, 1000);
+  }, 500);
+}
+
+function renderReview() {
+  const withNotes = rallies.reduce((a, _, i) =>
+    a + ((notes[i] || "").trim() || (noteTags[i] || []).length ? 1 : 0), 0);
+  $("#reviewStatus").textContent = rallies.length
+    ? `${withNotes} из ${rallies.length} с комментарием` : "";
+  $("#reviewList").innerHTML = rallies.map((r, i) => {
+    const t = (notes[i] || "").trim(), tg = noteTags[i] || [];
+    return `<li class="${t || tg.length ? "has" : ""}${i === reviewIdx ? " sel" : ""}" data-i="${i}">
+      <span class="n">${i + 1}</span>
+      <span class="t">${fmt(r.start)}</span>
+      <span class="d">${(r.end - r.start).toFixed(1)}с</span>
+      ${tg.length ? `<span class="flag">${tg.join(", ")}</span>` : ""}
+      ${t ? `<span class="txt">${t.replace(/</g, "&lt;")}</span>` : ""}
+    </li>`;
+  }).join("");
+  $("#reviewList").querySelectorAll("li").forEach(li =>
+    li.onclick = () => { reviewIdx = +li.dataset.i; showReview(); });
+}
+
+function showReview() {
+  const r = rallies[reviewIdx];
+  if (!r) { stopReview(); return; }
+  $("#reviewNow").hidden = false;
+  $("#rnTitle").textContent = `розыгрыш ${reviewIdx + 1} из ${rallies.length} · ${fmt(r.start)} · ${(r.end - r.start).toFixed(1)}с`;
+  const cur = noteTags[reviewIdx] || [];
+  $("#rnTags").innerHTML = tagPresets.map(t =>
+    `<span class="tag ${cur.includes(t) ? "on" : ""}" data-t="${t}">${t}</span>`).join("");
+  $("#rnTags").querySelectorAll(".tag").forEach(el => el.onclick = () => {
+    const t = el.dataset.t, list = noteTags[reviewIdx] || [];
+    noteTags[reviewIdx] = list.includes(t) ? list.filter(x => x !== t) : [...list, t];
+    saveNotes(); showReview(); renderReview();
+  });
+  const box = $("#rnNote");
+  box.value = notes[reviewIdx] || "";
+  box.oninput = () => { notes[reviewIdx] = box.value; saveNotes(); };
+  box.onkeydown = e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); nextReview(); }
+  };
+  playQueue = { list: [r], i: 0 };
+  v.currentTime = r.start; v.play();
+  renderReview();
+  box.focus();
+  const li = $("#reviewList").querySelector("li.sel");
+  if (li) li.scrollIntoView({ block: "nearest" });
+}
+
+function nextReview() {
+  if (reviewIdx + 1 >= rallies.length) { stopReview(); hint("разбор пройден"); return; }
+  reviewIdx++; showReview();
+}
+
+function stopReview() {
+  reviewing = false; reviewIdx = -1;
+  $("#reviewNow").hidden = true;
+  $("#btnReviewPlay").textContent = "▶ идти по розыгрышам";
+  renderReview();
+}
+
+$("#btnReviewPlay").onclick = () => {
+  if (reviewing) { stopReview(); return; }
+  if (!rallies.length) { hint("сначала нужна разметка розыгрышей"); return; }
+  reviewing = true;
+  $("#btnReviewPlay").textContent = "остановить";
+  reviewIdx = rallies.findIndex((_, i) => !(notes[i] || "").trim() && !(noteTags[i] || []).length);
+  if (reviewIdx < 0) reviewIdx = 0;
+  showReview();
+};
+
+$("#rnAgain").onclick = () => { const r = rallies[reviewIdx]; if (r) { v.currentTime = r.start; v.play(); } };
+$("#rnSkip").onclick = nextReview;
+
+$("#btnReviewExport").onclick = async () => {
+  const res = await api(`/api/review/${encodeURIComponent(name)}`, { method: "POST" });
+  $("#reviewResult").innerHTML = `готово: ${res.file.split("/").slice(-2).join("/")} (${res.commented} с комментариями)`;
 };

@@ -303,6 +303,80 @@ def api_video(name: str, request: Request):
     return ranged(p, request)
 
 
+# ---------- разбор: заметки по розыгрышам ----------
+
+class NotesReq(BaseModel):
+    name: str
+    notes: dict = {}          # номер розыгрыша (строкой) -> текст
+    tags: dict = {}           # номер розыгрыша (строкой) -> список меток
+
+
+@app.get("/api/notes/{name}")
+def api_notes(name: str):
+    d = store.load(name, "notes.json") or {}
+    return {"notes": d.get("notes", {}), "tags": d.get("tags", {}),
+            "presets": NOTE_TAGS}
+
+
+@app.post("/api/notes")
+def api_notes_save(r: NotesReq):
+    store.save(r.name, "notes.json", {"notes": r.notes, "tags": r.tags})
+    filled = sum(1 for v in r.notes.values() if (v or "").strip())
+    return {"status": "сохранено", "n": filled}
+
+
+NOTE_TAGS = ["ошибка подачи", "приём", "накат", "топспин", "подрезка",
+             "блок", "не дотянулся", "в сетку", "за стол", "хороший розыгрыш"]
+
+
+@app.post("/api/review/{name}")
+def api_review(name: str):
+    """Собирает разбор матча в текстовый файл: таймкоды, счёт и мои заметки."""
+    seg = store.load(name, "segments.json") or {}
+    rallies = seg.get("rallies", [])
+    if not rallies:
+        raise HTTPException(400, "нет размеченных розыгрышей")
+    nd = store.load(name, "notes.json") or {}
+    notes, tags = nd.get("notes", {}), nd.get("tags", {})
+    sc = store.load(name, "score.json") or {}
+    setup = _setup_of(name)
+    winners = (sc.get("winners") or [])[:len(rallies)]
+    winners += [None] * (len(rallies) - len(winners))
+    states = scoring.timeline(winners, setup)
+    states, _ = _apply_sides(name, states, rallies, setup)
+    by_rally = {st["rally"]: st for st in states}
+
+    def mmss(t):
+        m = int(t // 60)
+        return f"{m}:{t - 60 * m:05.2f}"
+
+    lines = [f"# Разбор матча: {name}", ""]
+    if any(winners):
+        s = scoring.summary(states, setup)
+        lines += [f"Счёт: {setup.name_a} {s['games_a']} : {s['games_b']} {setup.name_b}", ""]
+    lines += ["| № | время | длит. | счёт | выиграл | метки | комментарий |",
+              "|---|---|---|---|---|---|---|"]
+    for i, r in enumerate(rallies):
+        st = by_rally.get(i)
+        score_txt = f"{st['points_a']}:{st['points_b']}" if st else ""
+        w = winners[i]
+        who = setup.name_a if w == "a" else setup.name_b if w == "b" else ""
+        key = str(i)
+        lines.append("| %d | %s | %.1f с | %s | %s | %s | %s |" % (
+            i + 1, mmss(r["start"]), r["end"] - r["start"], score_txt, who,
+            ", ".join(tags.get(key, [])), (notes.get(key) or "").replace("|", "/")))
+
+    commented = [i for i in range(len(rallies))
+                 if (notes.get(str(i)) or "").strip() or tags.get(str(i))]
+    lines += ["", f"Розыгрышей: {len(rallies)}, с комментариями: {len(commented)}"]
+
+    os.makedirs(store.OUT_DIR, exist_ok=True)
+    out = os.path.join(store.OUT_DIR, os.path.splitext(name)[0] + "_разбор.md")
+    with open(out, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return {"status": "готово", "file": out, "commented": len(commented)}
+
+
 # ---------- упражнения (тренировки) ----------
 
 class ClipsReq(BaseModel):

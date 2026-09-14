@@ -38,6 +38,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="list">Розыгрыши</button>
       <button class="tab" data-tab="clips">Упражнения</button>
+      <button class="tab" data-tab="review">Разбор</button>
       <button class="tab" data-tab="score">Счёт</button>
       <button class="tab" data-tab="export">Экспорт</button>
       <button class="tab" data-tab="help">Клавиши</button>
@@ -84,6 +85,28 @@
         дают точные границы.</div>
       <div id="clipProgress" class="progress" hidden><div id="clipBar"></div><span id="clipText"></span></div>
       <div id="clipResult"></div>
+    </div>
+
+    <div class="panel" id="tab-review" hidden>
+      <div class="toolbar">
+        <button id="btnReviewPlay">▶ идти по розыгрышам</button>
+        <span id="reviewStatus" class="muted"></span>
+      </div>
+      <div class="hint">Розыгрыши проигрываются подряд. Пишите заметку —
+        следующий включится, когда нажмёте <b>Enter</b>. Метки ставятся кликом.</div>
+      <div id="reviewNow" class="reviewnow" hidden>
+        <div class="rn-head"><span id="rnTitle"></span>
+          <button id="rnAgain" title="Повторить">↻</button>
+          <button id="rnSkip" title="Дальше">→</button>
+        </div>
+        <div id="rnTags" class="tags"></div>
+        <textarea id="rnNote" rows="2" placeholder="что тут произошло, что исправить…"></textarea>
+      </div>
+      <ol id="reviewList" class="list notes"></ol>
+      <div class="toolbar">
+        <button id="btnReviewExport">Собрать разбор</button>
+        <span id="reviewResult" class="muted"></span>
+      </div>
     </div>
 
     <div class="panel" id="tab-score" hidden>

@@ -41,6 +41,11 @@ def score_in_name(name):
     return f"{m.group(1)}-{m.group(2)}" if m else None
 
 
+def is_training(name):
+    """Тренировка — запись, где размечены упражнения, а не розыгрыши матча."""
+    return bool((store.load(name, "clips.json") or {}).get("clips"))
+
+
 def known_score(name):
     """Счёт матча: из разметки, из текущего имени или из сохранённой пометки."""
     sc = store.load(name, "score.json") or {}
@@ -85,14 +90,17 @@ def plan():
             if parent:
                 derived[f] = parent
     matches = [f for f in files if f not in derived]
+    # матчи и тренировки нумеруются раздельно: иначе добавленная тренировка
+    # сдвигала бы номера уже разобранных матчей того же дня
     by_day = {}
     for f in matches:
-        by_day.setdefault(times[f].date(), []).append(f)
+        key = (times[f].date(), is_training(f) or "_тренировка" in f)
+        by_day.setdefault(key, []).append(f)
 
     mapping = {}
-    for day, fs in sorted(by_day.items()):
+    for (day, training), fs in sorted(by_day.items()):
         for i, f in enumerate(sorted(fs, key=lambda x: times[x]), 1):
-            base = f"{day.isoformat()}_{i}"
+            base = f"{day.isoformat()}_тренировка_{i}" if training else f"{day.isoformat()}_{i}"
             sc = known_score(f)
             if sc:
                 base += f"_{sc}"

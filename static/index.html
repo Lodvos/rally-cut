@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Настольный теннис — обработка матчей</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Обработка матчей</h1>
+  <div id="videoPicker"></div>
+</header>
+
+<main>
+  <section class="player">
+    <video id="v" controls preload="metadata"></video>
+    <div id="timeline" class="timeline"><div id="cursor" class="cursor"></div></div>
+    <div class="bar">
+      <span id="clock">0:00.00</span>
+      <span id="segInfo" class="muted">розыгрыш не выбран</span>
+      <span class="spacer"></span>
+      <label class="inline">скорость
+        <select id="rate">
+          <option value="1">1×</option>
+          <option value="1.5" selected>1.5×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+        </select>
+      </label>
+      <button id="btnPlaySeg" title="Проиграть выбранный розыгрыш">▶ розыгрыш</button>
+      <button id="btnPlayAll" title="Проиграть подряд только розыгрыши">▶ подряд</button>
+    </div>
+    <div id="hint" class="hint"></div>
+  </section>
+
+  <section class="side">
+    <div class="tabs">
+      <button class="tab active" data-tab="list">Розыгрыши</button>
+      <button class="tab" data-tab="clips">Упражнения</button>
+      <button class="tab" data-tab="score">Счёт</button>
+      <button class="tab" data-tab="export">Экспорт</button>
+      <button class="tab" data-tab="help">Клавиши</button>
+    </div>
+
+    <div class="panel" id="tab-list">
+      <div class="toolbar">
+        <button id="btnAnalyze">Анализировать</button>
+        <button id="btnReset" title="Вернуть разметку, которую предложила автоматика">Сбросить правки</button>
+        <button id="btnClear" title="Удалить все розыгрыши и размечать с нуля">Очистить всё</button>
+        <span id="status" class="muted"></span>
+      </div>
+      <div id="progress" class="progress" hidden><div id="progressBar"></div><span id="progressText"></span></div>
+      <div class="checkrow">
+        <label class="inline"><input type="checkbox" id="onlySus"> только требующие проверки</label>
+        <span id="susCount" class="muted"></span>
+      </div>
+      <div id="counts" class="muted"></div>
+      <ol id="list" class="list"></ol>
+    </div>
+
+    <div class="panel" id="tab-clips" hidden>
+      <div class="toolbar">
+        <button id="btnClipNew" title="Начать отрезок с текущей позиции (N)">Новый отрезок</button>
+        <button id="btnClipEnd" title="Закончить отрезок здесь (O)">Закончить</button>
+        <span id="clipStatus" class="muted"></span>
+      </div>
+      <div class="hint">Края отрезков тянутся мышью прямо на полосе под видео.
+        Клавиши: <b>N</b> — начало, <b>O</b> — конец, <b>Backspace</b> — удалить выбранный.</div>
+      <ol id="clipList" class="list clips"></ol>
+      <div class="toolbar">
+        <label class="inline">качество
+          <select id="clipQuality">
+            <option value="copy" selected>как в оригинале (быстро, старт на ~1 с раньше)</option>
+            <option value="16M">высокое</option>
+            <option value="12M">обычное</option>
+            <option value="8M">лёгкое</option>
+          </select>
+        </label>
+        <button id="btnClipExport">Выгрузить все</button>
+      </div>
+      <div class="muted small">Быстрый режим режет по опорным кадрам: качество исходное,
+        но начало ролика отступает назад примерно на секунду. Варианты с перекодированием
+        дают точные границы.</div>
+      <div id="clipProgress" class="progress" hidden><div id="clipBar"></div><span id="clipText"></span></div>
+      <div id="clipResult"></div>
+    </div>
+
+    <div class="panel" id="tab-score" hidden>
+      <details id="setupBox" open>
+        <summary>Настройка матча</summary>
+        <div id="whoBox" class="whobox" hidden>
+          <div class="muted">Кто из них вы? Нажмите на своё фото.</div>
+          <div class="photos">
+            <button class="photo" data-p="1"><img id="ph1" alt="игрок 1"><span>игрок 1</span></button>
+            <button class="photo" data-p="2"><img id="ph2" alt="игрок 2"><span>игрок 2</span></button>
+          </div>
+          <div id="whoNote" class="muted"></div>
+        </div>
+        <label>Ваше имя <input id="nameA" value="Игрок A"></label>
+        <label>Имя соперника <input id="nameB" value="Игрок B"></label>
+        <label id="startSideRow">В начале матча слева в кадре
+          <select id="startSide"><option value="a">вы</option><option value="b">соперник</option></select>
+        </label>
+        <label>Первым подаёт
+          <select id="firstServer"><option value="a">игрок A</option><option value="b">игрок B</option></select>
+        </label>
+        <label>Формат матча
+          <select id="format"><option value="3">до 3 побед (из 5 геймов)</option>
+            <option value="4">до 4 побед (из 7 геймов)</option></select>
+        </label>
+        <button id="btnSetup">Сохранить настройку</button>
+      </details>
+
+      <div class="scorebar">
+        <span id="scoreSummary" class="muted">счёт не размечен</span>
+        <span class="spacer"></span>
+        <button id="btnMark">Разметить очки</button>
+      </div>
+      <div id="markHint" class="hint"></div>
+      <ol id="pointList" class="list points"></ol>
+    </div>
+
+    <div class="panel" id="tab-export" hidden>
+      <label>Режим
+        <select id="exMode">
+          <option value="rallies">Только розыгрыши</option>
+          <option value="rallies_score">Только розыгрыши со счётом</option>
+          <option value="full_score">Полное видео со счётом</option>
+          <option value="highlights">Хайлайты</option>
+          <option value="full">Полное видео</option>
+        </select>
+      </label>
+      <label id="exLimitRow">Длительность хайлайтов, мин
+        <input id="exLimit" type="number" value="3" min="0.5" step="0.5">
+      </label>
+      <label>Качество
+        <select id="exQuality">
+          <option value="16M">высокое</option>
+          <option value="12M" selected>обычное</option>
+          <option value="8M">лёгкое</option>
+        </select>
+      </label>
+      <button id="btnExport">Собрать файл</button>
+      <div id="exProgress" class="progress" hidden><div id="exBar"></div><span id="exText"></span></div>
+      <div id="exResult"></div>
+    </div>
+
+    <div class="panel" id="tab-help" hidden>
+      <table class="keys">
+        <tr><td>Пробел</td><td>плей / пауза</td></tr>
+        <tr><td>← →</td><td>± 2 секунды</td></tr>
+        <tr><td>Shift + ← →</td><td>± 0.2 секунды</td></tr>
+        <tr><td>↑ ↓</td><td>предыдущий / следующий розыгрыш</td></tr>
+        <tr><td>I</td><td>начало выбранного розыгрыша = текущая позиция</td></tr>
+        <tr><td>O</td><td>конец выбранного розыгрыша = текущая позиция</td></tr>
+        <tr><td>N</td><td>начало нового розыгрыша (открыть)</td></tr>
+        <tr><td>O</td><td>конец розыгрыша (закрыть открытый)</td></tr>
+        <tr><td>Backspace</td><td>удалить выбранный розыгрыш</td></tr>
+        <tr><td>[ ]</td><td>сдвинуть начало на ∓0.1 с</td></tr>
+        <tr><td>, .</td><td>сдвинуть конец на ∓0.1 с</td></tr>
+        <tr><td colspan="2" class="keys-sub">Упражнения (вкладка «Упражнения»)</td></tr>
+        <tr><td>N</td><td>начало упражнения</td></tr>
+        <tr><td>O</td><td>конец упражнения</td></tr>
+        <tr><td>Backspace</td><td>удалить выбранное</td></tr>
+        <tr><td>мышь</td><td>тянуть края отрезков прямо на полосе</td></tr>
+        <tr><td colspan="2" class="keys-sub">Разметка счёта (вкладка «Счёт»)</td></tr>
+        <tr><td>←</td><td>очко выиграл игрок слева</td></tr>
+        <tr><td>→</td><td>очко выиграл игрок справа</td></tr>
+        <tr><td>Пробел</td><td>повторить розыгрыш</td></tr>
+        <tr><td>X</td><td>переподача — убрать эпизод (не очко, в видео не попадёт)</td></tr>
+        <tr><td>Backspace</td><td>вернуться к предыдущему очку</td></tr>
+      </table>
+      <p class="muted">Правки сохраняются кнопкой «Сохранить правки» и переживают перезапуск.</p>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

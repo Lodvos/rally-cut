@@ -1,0 +1,11 @@
+fastapi==0.141.1
+numpy==2.5.3
+opencv-python-headless==5.0.0.93
+pillow==12.3.0
+python-multipart==0.0.32
+scikit-learn==1.9.1
+scipy==1.18.1
+torch==2.14.0
+torchvision==0.29.0
+ultralytics==8.4.147
+uvicorn==0.52.4

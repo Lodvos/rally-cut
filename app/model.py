@@ -9,7 +9,7 @@ MODEL_PATH = os.path.join(store.ROOT, "data", "model.pkl")
 # в незнакомых условиях (другой зал, ракурс) она менее уверена, и фиксированный
 # порог отрезал бы половину розыгрышей
 POST = dict(thr=None, thr_factor=0.25, thr_min=0.15, thr_max=0.45,
-            smooth=13, fill=1.4, min_len=1.6, pre_roll=0.0, post_roll=0.3,
+            smooth=13, fill=1.4, min_len=1.6, pre_roll=0.2, post_roll=0.5,
             split_len=9.0,    # сегмент длиннее — ищем внутри границу очков
             split_thr=0.45,   # провал ниже — считаем паузой между очками
             split_min=1.5)    # обе части должны быть не короче
